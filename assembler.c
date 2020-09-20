@@ -79,16 +79,19 @@ bool isLabel(char* inStr){
 
     int inStrLength = strlen(inStr);
     if(inStrLength > 20){
+        printf("\nlabel length > 20\n");
         exit(4);
     }
 
     if(inStr[0] == 'x'){
+        printf("\nlabel begins with x\n");
         exit(4);
     }
 
     int invalidLabelsLength = sizeof(invalidLabels)/(sizeof(char*));
     for(int i = 0; i < invalidLabelsLength; i++){
         if(strcmp(inStr, invalidLabels[i]) == 0){
+            printf("\nLabel is one of the invalid labels\n");
             exit(4);
         }
     }
@@ -118,6 +121,7 @@ bool isLabel(char* inStr){
         if(inStrChar >= 48 && inStrChar <= 57){
             continue;
         }
+        printf("\nLabel contains something other than a-z 0-9\n");
         exit(4);
     }
 
@@ -223,202 +227,267 @@ void processOpcode(char** tokenList, int tokenListCount, int offset){
     if(strcmp(tokenList[opcodeIndex], "ADD") == 0){
         // has to be opcode, reg, reg, reg/valid num
         if(tokenListCount != 4){
+            printf("\nADD with invalid num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nADD with invalid registers\n");
             exit(4);
         }else if(!isRegister(tokenList[fourthIndex]) &&
                  (toNum(tokenList[fourthIndex]) > 15 ||
                   toNum(tokenList[fourthIndex]) < -16)){
+            printf("\nADD with invalid fourth argument\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "AND") == 0){
         if(tokenListCount != 4){
+            printf("\nAND with invalid num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nAND with invalid registers\n");
             exit(4);
         }else if(!isRegister(tokenList[fourthIndex]) &&
                  (toNum(tokenList[fourthIndex]) > 15 ||
                   toNum(tokenList[fourthIndex]) < -16)){
+            printf("\nAND with invalid fourth argument\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "BR") == 0){
         if(tokenListCount != 2){
+            printf("\nBR with invalid num arguments\n");
             exit(4);
         }else if(!isLabel(tokenList[reg1Index])){
+            printf("\nBR with invalid label\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "BRN") == 0){
         if(tokenListCount != 2){
+            printf("\nBRN with invalid num arguments\n");
             exit(4);
         }else if(!isLabel(tokenList[reg1Index])){
+            printf("\nBRN with invalid label\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "BRNZ") == 0){
          if(tokenListCount != 2){
+            printf("\nBRNZ with invalid num arguments\n");
             exit(4);
         }else if(!isLabel(tokenList[reg1Index])){
+            printf("\nBRNZ with invalid label\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "BRNP") == 0){
          if(tokenListCount != 2){
+            printf("\nBRNP with invalid num arguments\n");
             exit(4);
         }else if(!isLabel(tokenList[reg1Index])){
+            printf("\nBRNP with invalid label\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "BRNZP") == 0){
         if(tokenListCount != 2){
+            printf("\nBRNZP with invalid num arguments\n");
             exit(4);
         }else if(!isLabel(tokenList[reg1Index])){
+            printf("\nBRNZP with invalid label\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "BRZ") == 0){
         if(tokenListCount != 2){
+            printf("\nBRZ with invalid num arguments\n");
             exit(4);
         }else if(!isLabel(tokenList[reg1Index])){
+            printf("\nBRZ with invalid label\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "BRZP") == 0){
         if(tokenListCount != 2){
+            printf("\nBRZP with invalid num arguments\n");
             exit(4);
         }else if(!isLabel(tokenList[reg1Index])){
+            printf("\nBRZP with invalid label\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "BRP") == 0){
         if(tokenListCount != 2){
+            printf("\nBRP with invalid num arguments\n");
             exit(4);
         }else if(!isLabel(tokenList[reg1Index])){
+            printf("\nBRP with invalid label\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "HALT") == 0){
         if(tokenListCount != 1){
+            printf("\nBRP with invalid num arguments\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "JMP") == 0){
         if(tokenListCount != 2){
+            printf("\nBRP with invalid num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index])){
+            printf("\nBRP with invalid registers\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "JSR") == 0){
         if(tokenListCount != 2){
+            printf("\nJSR with invalid num arguments\n");
             exit(4);
         }else if(!isLabel(tokenList[reg1Index])){
+            printf("\nJSR with invalid registers\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "JSRR") == 0){
         if(tokenListCount != 2){
+            printf("\nJSRR with invalid num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index])){
+            printf("\nJSRR with invalid registers\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "LDB") == 0){
         if(tokenListCount != 4){
+            printf("\nLDB with invalid num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nLDB with invalid registers\n");
             exit(4);
         }else if(toNum(tokenList[fourthIndex]) > 31 ||
                  toNum(tokenList[fourthIndex]) < -32){
+            printf("\nLDB with invalid num arg range\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "LDW") == 0){
         if(tokenListCount != 4){
+            printf("\nLDW with invalid num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nLDW with invalid registers\n");
             exit(4);
         }else if(toNum(tokenList[fourthIndex]) > 31 ||
                  toNum(tokenList[fourthIndex]) < -32){
+            printf("\nLDW with invalid num arg range\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "LEA") == 0){
          if(tokenListCount != 3){
+            printf("\nLEA with invalid num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index])){
+            printf("\nLEA with invalid registers\n");
             exit(4);
         }else if(!isLabel(tokenList[reg2Index])){
+            printf("\nLEA with invalid label\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "NOP") == 0){
         if(tokenListCount != 1){
+            printf("\nNOP with invalid num arguments\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "NOT") == 0){
         if(tokenListCount != 3){
+            printf("\nNOT with invalid num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nNOT with invalid registers");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "RET") == 0){
         if(tokenListCount != 1){
+            printf("\nRTI with invalid num arguments\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "LSHF") == 0){
         if(tokenListCount != 4){
+            printf("\nLSHF wrong num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nLSFH with invalid registers\n");
             exit(4);
-        }else if(toNum(tokenList[fourthIndex]) > 7){
-            exit(4);
+        }else if(toNum(tokenList[fourthIndex]) > 7 ||
+                 toNum(tokenList[fourthIndex]) < 0){
+            printf("LSHF with invalid num arg range\n");
+            exit(3);
         }
     }else if(strcmp(tokenList[opcodeIndex], "RSHFL") == 0){
         if(tokenListCount != 4){
+            printf("\nRSHFL with wrong num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nRSHFL with invalid registers\n");
             exit(4);
-        }else if(toNum(tokenList[fourthIndex]) > 7){
-            exit(4);
+        }else if(toNum(tokenList[fourthIndex]) > 7 ||
+                 toNum(tokenList[fourthIndex]) < 0){
+            printf("\nRSHFL with invalid num arg range\n");
+            exit(3);
         }
     }else if(strcmp(tokenList[opcodeIndex], "RSHFA") == 0){
         if(tokenListCount != 4){
+            printf("\nRSHFA with invalid registers\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nRSHFA with invalid registers\n");
             exit(4);
-        }else if(toNum(tokenList[fourthIndex]) > 7){
-            exit(4);
+        }else if(toNum(tokenList[fourthIndex]) > 7 ||
+                 toNum(tokenList[fourthIndex]) < 0){
+            printf("\nRSFHA with invalid num arg range\n");
+            exit(3);
         }
     }else if(strcmp(tokenList[opcodeIndex], "RTI") == 0){
         if(tokenListCount != 1){
+            printf("\nRTI with invalid registers\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "STB") == 0){
         if(tokenListCount != 4){
+            printf("\nSTB with wrong num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nSTB with invalid registers\n");
             exit(4);
         }else if(toNum(tokenList[fourthIndex]) > 31 ||
                  toNum(tokenList[fourthIndex]) < -32){
+            printf("\nSTB with invalid num arg range\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "STW") == 0){
         if(tokenListCount != 4){
+            printf("\nSTW with wrong num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nSTW with invalid registers\n");
             exit(4);
         }else if(toNum(tokenList[fourthIndex]) > 31 ||
                  toNum(tokenList[fourthIndex]) < -32){
+            printf("\nSTW with invalid num arg range\n");
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "TRAP") == 0){
 
     }else if(strcmp(tokenList[opcodeIndex], "XOR") == 0){
         if(tokenListCount != 4){
+            printf("\nXOR with wrong num arguments\n");
             exit(4);
         }else if(!isRegister(tokenList[reg1Index]) ||
                  !isRegister(tokenList[reg2Index])){
+            printf("\nXOR with invalid register\n");
             exit(4);
         }else if(!isRegister(tokenList[fourthIndex])){
+            printf("\nXOR with invalid register\n");
             exit(4);
         }else if(toNum(tokenList[fourthIndex]) > 15 ||
                  toNum(tokenList[fourthIndex]) < -16){
+            printf("\nXOR invalid num arg range\n");
             exit(4);
         }
     }else{
@@ -433,18 +502,22 @@ void processPseudoOp(char** tokenList, int tokenListCount, int offset){
 
     if(strcmp(tokenList[pseudoOpIndex], ".ORIG") == 0){
         if(tokenListCount != 2){
+            printf("\n.ORIG with no address\n");
             exit(4);
         }
         int beginAddress = toNum(tokenList[argIndex]);
         if(beginAddress % 2 == 1){
+            printf("\n.ORIG with odd address argument\n");
             exit(3);
         }
     }else if(strcmp(tokenList[pseudoOpIndex], ".FILL") == 0){
         if(tokenListCount != 2){
+            printf("\n.FILL with no argument\n");
             exit(4);
         }
     }else if(strcmp(tokenList[pseudoOpIndex], ".END") == 0){
         if(tokenListCount != 1){
+            printf("\n.END should be alone\n");
             exit(4);
         }
     }else{
@@ -548,6 +621,10 @@ int zerothPass(char* inFileName){
                     tokenList[tokenListCount][i] = '\0';
                     break;
                 }
+                //don't capitalize beginning 'x' chars because they should throw errors
+                if(i == 0 && tokenList[tokenListCount][i] == 'x'){
+                    continue;
+                }
                 tokenList[tokenListCount][i] = toupper(tokenList[tokenListCount][i]);
             }
             token = strtok(NULL, " \t");
@@ -569,16 +646,20 @@ int zerothPass(char* inFileName){
                     processOpcode(tokenList, tokenListCount, 1);
                 }else if(validPseudoOp){
                     if(strcmp(tokenList[1], ".ORIG") == 0){
+                        printf("\n .ORIG missing operand\n");
                         exit(4);
                     }else if(strcmp(tokenList[1], ".END") == 0){
+                        printf("\n label at .END \n");
                         exit(4);
                     }else{
                         processPseudoOp(tokenList, tokenListCount, 1);
                     }
                 }else{
+                    printf("\noperand after label neither pseudo op or opcode\n");
                     exit(4);
                 }
             }else{
+                printf("\nbare label\n");
                 exit(4);
             }
         }else{
@@ -622,6 +703,10 @@ int zerothPass(char* inFileName){
         putc('\n', reformattedInFile);
         free(correctedString);
 
+        bool endEarly = false;
+        if(strcmp(tokenList[0], ".END") == 0){
+            endEarly = true;
+        }
         //printf("______________________________");
         for(int i = 0; i < tokenListCount; i++){
             //printf("token: %s ", tokenList[i]);
@@ -630,10 +715,119 @@ int zerothPass(char* inFileName){
         }
         free(tokenList);
         printf("\n");
-        
+
+        if(endEarly){
+            fclose(reformattedInFile);
+            return 0;
+        }
     }
 
+    fclose(reformattedInFile);
     return 0;
+}
+
+void firstAndSecondPass(){
+    //create symbol table first
+
+    //throw error 4 if .ORIG missing
+    //get starting address
+    //count number labels
+    //allocate memory and redo this
+
+    printf("\n===first pass===\n");
+
+    char lineBuffer[MAX_LINE_LENGTH];
+    reformattedInFile = fopen(TEMP_FILE_NAME, "r");
+    
+    int startingAddress = 0;
+    int numLabels = 0;    
+    
+    while(fgets(lineBuffer, MAX_LINE_LENGTH, reformattedInFile) != NULL){
+        
+        // only need to check the first token for each line
+        char* token = strtok(lineBuffer, " \t");
+        //printf("first token: %s \n", token);
+        if(strcmp(token, ".ORIG") == 0){
+            char* addressToken = strtok(NULL, " \t");
+            int secondTokenLength = strlen(addressToken);
+            // by default all lines end with a '\n'
+            addressToken[secondTokenLength-1] = '\0';
+            //printf("second token length: %d \n", (int)strlen(token));
+            startingAddress = toNum(addressToken);
+            printf("starting address: %d \n", startingAddress);
+        }
+
+        int tokenLength = strlen(token);
+        if(token[tokenLength-1] == '\n'){
+            token[tokenLength-1] = '\0';
+        }
+
+        if(isLabel(token)){
+            numLabels++;
+        }
+    }
+
+    rewind(reformattedInFile);
+
+    //-2 because the following logic will increment even at the .ORIG line
+    int currentAddress = startingAddress -2;
+    int labelsIndex = 0;
+    char** labels = (char**)malloc(numLabels * sizeof(char*));
+    int* labelAddresses = (int*)malloc(numLabels * sizeof(int));
+
+    while(fgets(lineBuffer, MAX_LINE_LENGTH, reformattedInFile) != NULL){
+        
+        char* token = strtok(lineBuffer, " \t");
+
+        int tokenLength = strlen(token);
+        if(token[tokenLength-1] == '\n'){
+            token[tokenLength-1] = '\0';
+            tokenLength = strlen(token);
+        }
+
+        if(isLabel(token)){
+            char* tokenDup = (char*)malloc((tokenLength + 1) * sizeof(char));
+            for(int i = 0; i < tokenLength; i++){
+                tokenDup[i] = token[i];
+            }
+            tokenDup[tokenLength] = '\0';
+            labels[labelsIndex] = tokenDup;
+            labelAddresses[labelsIndex] = currentAddress;
+            labelsIndex++;
+        }
+        currentAddress += 2;
+    }
+
+    // check for repeat labels
+    for(int i = 0; i < numLabels; i++){
+        for(int j = 0; j < numLabels; j++){
+            if(i != j){
+                if(strcmp(labels[i], labels[j]) == 0){
+                    printf("\nrepeat labels: %s \n", labels[i]);
+                    exit(4);
+                }
+            }
+        }
+    }
+
+    rewind(reformattedInFile);
+
+    //done with the first pass
+    printf("\n===second pass===\n");
+
+
+
+
+
+
+
+    for(int i = 0; i < numLabels; i++){
+        printf("label: %s \t", labels[i]);
+        printf("address: %d \n", labelAddresses[i]);
+        free(labels[i]);
+    }
+    free(labels);
+    free(labelAddresses);
 }
 
 
@@ -651,10 +845,11 @@ int main(int argc, char** argv){
 
     printf("input file name: %s \n", iFileName);
     printf("output file name: %s \n", oFileName);
-
+    
+    printf("\n==zerothPass==\n");
+    printf("\n");
     zerothPass(iFileName);
-    //firstPass();
-    //secondPass();
-
+    firstAndSecondPass();
+  
     return 0;
 }
