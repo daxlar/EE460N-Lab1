@@ -9,7 +9,6 @@
 #define TEMP_FILE_NAME "reformattedInFile"
 FILE* reformattedInFile;
 
-
 char* opcodeList[] = {"ADD", 
                       "AND",
                       "BR", 
@@ -528,6 +527,8 @@ void processPseudoOp(char** tokenList, int tokenListCount, int offset){
 
 int zerothPass(char* inFileName){
 
+    printf("\n==zerothPass==\n");
+    printf("\n");
     // cull empty lines and comments
     // each line must be:
     /**
@@ -726,7 +727,145 @@ int zerothPass(char* inFileName){
     return 0;
 }
 
-void firstAndSecondPass(){
+
+void registerToBinary(char* reg, char* isaBinaryStr, int* isaBinaryStrIndex){
+
+    char leftBit = '0';
+    char midBit = '0';
+    char rightBit = '0';
+
+    int registerNum = reg[1] - '0';
+    leftBit += registerNum % 2;
+    registerNum /= 2;
+    midBit += registerNum % 2;
+    registerNum /= 2;
+    rightBit += registerNum % 2;
+    registerNum /= 2;
+
+    isaBinaryStr[*isaBinaryStrIndex] = rightBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = midBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = leftBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+}
+
+void immediateToBinary5Bit(char* imm, char* isaBinaryStr, int* isaBinaryStrIndex){
+
+    int immVal = toNum(imm);
+    printf("immVal: %d \n", immVal);
+
+    char fourthBit = '0';
+    char thirdBit = '0';
+    char secondBit = '0';
+    char firstBit = '0';
+    char zerothBit = '0';
+
+    int negativity = 1;
+    int moduloNum = 2;
+    if(immVal < 0){
+        negativity = -1;
+    }
+    
+    zerothBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    firstBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    secondBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    thirdBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fourthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    
+    isaBinaryStr[*isaBinaryStrIndex] = fourthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = thirdBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = secondBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = firstBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = zerothBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+
+}
+
+void isaToHex(char** tokenList, int tokenListCount, FILE* outputFile){
+
+    //1 more for the null terminating char
+    int isaBinaryStrLength = 17;
+    char* isaBinaryStr = (char*)malloc(isaBinaryStrLength * sizeof(char));
+    isaBinaryStr[isaBinaryStrLength-1] = '\0';
+    int isaBinaryStrIndex = 0;
+
+    int tokenListIndex = 0;
+    if(isLabel(tokenList[tokenListIndex])){
+        tokenListIndex++;
+    }
+
+    if(strcmp(tokenList[tokenListIndex], "ADD") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        bool reg = isRegister(tokenList[tokenListIndex]);
+        if(!reg){
+            isaBinaryStr[isaBinaryStrIndex] = '1';
+            isaBinaryStrIndex++;
+            immediateToBinary5Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        }else{
+            isaBinaryStr[isaBinaryStrIndex] = '0';
+            isaBinaryStrIndex++;
+            isaBinaryStr[isaBinaryStrIndex] = '0';
+            isaBinaryStrIndex++;
+            isaBinaryStr[isaBinaryStrIndex] = '0';
+            isaBinaryStrIndex++;
+            registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        }
+    }else if(strcmp(tokenList[tokenListIndex], "AND") == 0){
+
+    }
+
+    
+    //convert to hex and put it in the output!!
+    int value = (int)strtol(isaBinaryStr, NULL, 2);
+    char hexString[8];
+    sprintf(hexString, "%x", value);
+    int hexStringLength = strlen(hexString);
+    
+    char* isaHex = (char*)malloc(6 * sizeof(char));
+    int isaHexIndex = 0;
+    isaHex[isaHexIndex] = 'x';
+    isaHexIndex++;
+    
+    for(int i = 0; i < hexStringLength; i++){
+        isaHex[isaHexIndex] = hexString[i];
+        isaHexIndex++;
+    }
+    isaHex[isaHexIndex] = '\0';
+
+    fputs(isaHex, outputFile);
+    putc('\n', outputFile);
+    
+
+    free(isaBinaryStr);
+    free(isaHex);
+}
+
+
+void firstAndSecondPass(char* oFileName){
     //create symbol table first
 
     //throw error 4 if .ORIG missing
@@ -815,19 +954,60 @@ void firstAndSecondPass(){
     //done with the first pass
     printf("\n===second pass===\n");
 
+    //open the outFile here
+    FILE* outputFile = fopen(oFileName, "w");  
 
+    while(fgets(lineBuffer, MAX_LINE_LENGTH, reformattedInFile) != NULL){
 
+        int lineBufferLength = strlen(lineBuffer) + 1;
+        char* lineBufferDuplicate = (char*)malloc(lineBufferLength * sizeof(char));
+        strcpy(lineBufferDuplicate, lineBuffer);
 
+        int numTokens = 0;
+        char* token = strtok(lineBuffer, " \t");
+        while(token){
+            numTokens++;
+            token = strtok(NULL, " \t");
+        }
 
+        int tokenListCount = 0;
+        char** tokenList = (char**)malloc(numTokens * sizeof(char*));
+        token = strtok(lineBufferDuplicate, " \t");
+        while(token){
+            tokenList[tokenListCount] = (char*)malloc((strlen(token) + 1) * sizeof(char));
+            strcpy(tokenList[tokenListCount], token);
+            int tokenLength = strlen(token);
+            
+            // terminate commas, semicolons, and new line characters
+            // the last tokens in each line end with /n
+            for(int i = 0; i < tokenLength; i++){
+                if(tokenList[tokenListCount][i] == '\n'){
+                    tokenList[tokenListCount][i] = '\0';
+                    break;
+                }
+            }
+            token = strtok(NULL, " \t");
+            tokenListCount++;
+        }
 
+        isaToHex(tokenList, tokenListCount, outputFile);
+
+        for(int i = 0; i < numTokens; i++){
+            free(tokenList[i]);
+        }
+        free(tokenList);
+        free(lineBufferDuplicate);
+    }
 
     for(int i = 0; i < numLabels; i++){
-        printf("label: %s \t", labels[i]);
-        printf("address: %d \n", labelAddresses[i]);
+        //printf("label: %s \t", labels[i]);
+        //printf("address: %d \n", labelAddresses[i]);
         free(labels[i]);
     }
     free(labels);
     free(labelAddresses);
+
+    fclose(outputFile);
 }
 
 
@@ -846,10 +1026,8 @@ int main(int argc, char** argv){
     printf("input file name: %s \n", iFileName);
     printf("output file name: %s \n", oFileName);
     
-    printf("\n==zerothPass==\n");
-    printf("\n");
     zerothPass(iFileName);
-    firstAndSecondPass();
+    firstAndSecondPass(oFileName);
   
     return 0;
 }
