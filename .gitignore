@@ -54,3 +54,4 @@ dkms.conf
 #assembler files
 *.asm
 *.txt
+reformattedInFile
