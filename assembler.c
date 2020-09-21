@@ -1,3 +1,10 @@
+/*
+    Name 1: Allen Zhang
+    Name 2: Yancheng Du
+    UTEID 1: acz356
+    UTEID 2: yd4339
+*/
+
 #include <stdio.h> /* standard input/output library */
 #include <stdlib.h> /* Standard C Library */
 #include <string.h> /* String operations library */
@@ -8,6 +15,10 @@
 #define MAX_LINE_LENGTH 255
 #define TEMP_FILE_NAME "reformattedInFile"
 FILE* reformattedInFile;
+
+int numLabels;
+char** labels;
+int* labelAddresses;
 
 char* opcodeList[] = {"ADD", 
                       "AND",
@@ -98,13 +109,16 @@ bool isLabel(char* inStr){
     int pseudoOpListLength = sizeof(pseudoOpList)/(sizeof(char*));
     for(int i = 0; i < pseudoOpListLength; i++){
         if(strcmp(inStr, pseudoOpList[i]) == 0){
+            //printf("found: %s\n", inStr);
             return false;
         }
     }
 
     int opcodeListLength = sizeof(opcodeList)/(sizeof(char*));
+    //printf("opcodeListLength: %d\n", opcodeListLength);
     for(int i = 0; i < opcodeListLength; i++){
         if(strcmp(inStr, opcodeList[i]) == 0){
+            //printf("found: %s\n", inStr);
             return false;
         }
     }
@@ -409,7 +423,7 @@ void processOpcode(char** tokenList, int tokenListCount, int offset){
                  !isRegister(tokenList[reg2Index])){
             printf("\nLSFH with invalid registers\n");
             exit(4);
-        }else if(toNum(tokenList[fourthIndex]) > 7 ||
+        }else if(toNum(tokenList[fourthIndex]) > 15 ||
                  toNum(tokenList[fourthIndex]) < 0){
             printf("LSHF with invalid num arg range\n");
             exit(3);
@@ -422,7 +436,7 @@ void processOpcode(char** tokenList, int tokenListCount, int offset){
                  !isRegister(tokenList[reg2Index])){
             printf("\nRSHFL with invalid registers\n");
             exit(4);
-        }else if(toNum(tokenList[fourthIndex]) > 7 ||
+        }else if(toNum(tokenList[fourthIndex]) > 15 ||
                  toNum(tokenList[fourthIndex]) < 0){
             printf("\nRSHFL with invalid num arg range\n");
             exit(3);
@@ -435,7 +449,7 @@ void processOpcode(char** tokenList, int tokenListCount, int offset){
                  !isRegister(tokenList[reg2Index])){
             printf("\nRSHFA with invalid registers\n");
             exit(4);
-        }else if(toNum(tokenList[fourthIndex]) > 7 ||
+        }else if(toNum(tokenList[fourthIndex]) > 15 ||
                  toNum(tokenList[fourthIndex]) < 0){
             printf("\nRSFHA with invalid num arg range\n");
             exit(3);
@@ -472,7 +486,19 @@ void processOpcode(char** tokenList, int tokenListCount, int offset){
             exit(4);
         }
     }else if(strcmp(tokenList[opcodeIndex], "TRAP") == 0){
+        if(tokenListCount != 2){
+            printf("\nTRAP with wrong num arguments\n");
+            exit(4);
+        }
 
+        int trapValue = toNum(tokenList[reg1Index]);
+        int trapUpperBound = toNum("x01FF");
+        int trapLowerBound = 0;
+
+        if(trapValue > trapUpperBound || trapValue < trapLowerBound){
+            printf("\n invalid trap argument\n");
+            exit(4);
+        }
     }else if(strcmp(tokenList[opcodeIndex], "XOR") == 0){
         if(tokenListCount != 4){
             printf("\nXOR with wrong num arguments\n");
@@ -561,7 +587,7 @@ int zerothPass(char* inFileName){
     
         //break it up into labels and opcodes
 
-        char* token = strtok(lineBufferDuplicate, " \t");
+        char* token = strtok(lineBufferDuplicate, " \t,");
 
         if(!token){
             continue;
@@ -580,11 +606,13 @@ int zerothPass(char* inFileName){
             continue;
         }
 
+        char* lastToken;
         int signalToBreak = 0;
         int numTokens = 0;
         //stop checking tokens once a comment is reached
         //count number of possible tokens in the string
         while(token && token[0] != ';' && signalToBreak == 0){
+            printf("token: %s \n", token);
             numTokens++;
             //printf("token: %s \t", token);
             int tokenLength = strlen(token);
@@ -595,12 +623,19 @@ int zerothPass(char* inFileName){
                     break;
                 }
             }
-            token = strtok(NULL, " \t");
+            lastToken = token;
+            token = strtok(NULL, " \t,");
         }
+
+        int lastTokenLength = strlen(lastToken);
+        if(lastToken[0] < 32){
+            numTokens--;
+        }
+
         free(lineBufferDuplicate);
 
         char** tokenList = (char**)malloc(numTokens * sizeof(char*));
-        token = strtok(lineBuffer, " \t");
+        token = strtok(lineBuffer, " \t,");
         int tokenListCount = 0;
 
         //separate the tokens into array of tokens and capitalize them
@@ -628,7 +663,7 @@ int zerothPass(char* inFileName){
                 }
                 tokenList[tokenListCount][i] = toupper(tokenList[tokenListCount][i]);
             }
-            token = strtok(NULL, " \t");
+            token = strtok(NULL, " \t,");
             tokenListCount++;
         }
 
@@ -640,7 +675,7 @@ int zerothPass(char* inFileName){
 
         if(validLabel){
             // next has to be opcode or pseudoOP
-            if(numTokens > 2){
+            if(numTokens >= 2){
                 bool validOpcode = isOpcode(tokenList[1]);
                 bool validPseudoOp = isPseudoOp(tokenList[1]);
                 if(validOpcode){
@@ -668,6 +703,7 @@ int zerothPass(char* inFileName){
             bool validOpcode = isOpcode(tokenList[0]);
             bool validPseudoOp = isPseudoOp(tokenList[0]);
             if(validOpcode){
+                //printf("tokenListCount: %d\n", tokenListCount);
                 processOpcode(tokenList, tokenListCount, 0);
             }else if(validPseudoOp){
                 processPseudoOp(tokenList, tokenListCount, 0);
@@ -682,6 +718,15 @@ int zerothPass(char* inFileName){
         // if everything is good and has not exited, write line to temp file for first pass processing
         // use spaces to delimit the corrected strings to be placed into buffer
         int correctedStringLength = numTokens;
+        /*
+        printf("numTokens: %d\n", numTokens);
+
+        int size = sizeof(tokenList)/sizeof(char*);
+        printf("size: %d", size);
+        for(int i = 0; i < numTokens-1; i++){
+            printf("token: %s\t", tokenList[i]);
+        }
+        */
         for(int i = 0; i < numTokens; i++){
             correctedStringLength += strlen(tokenList[i]);
         }
@@ -710,8 +755,8 @@ int zerothPass(char* inFileName){
         }
         //printf("______________________________");
         for(int i = 0; i < tokenListCount; i++){
-            //printf("token: %s ", tokenList[i]);
-            //printf("token length: %d \n", (int)strlen(tokenList[i]));
+            printf("token: %s ", tokenList[i]);
+            printf("token length: %d \n", (int)strlen(tokenList[i]));
             free(tokenList[i]);
         }
         free(tokenList);
@@ -724,7 +769,7 @@ int zerothPass(char* inFileName){
     }
 
     fclose(reformattedInFile);
-    return 0;
+    return -1;
 }
 
 
@@ -750,10 +795,44 @@ void registerToBinary(char* reg, char* isaBinaryStr, int* isaBinaryStrIndex){
     *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
 }
 
+void shfImmediate4Bit(char* imm, char* isaBinaryStr, int* isaBinaryStrIndex){
+    int immVal = toNum(imm);
+    if(immVal < 0){
+        printf("\nshifting by a negative number\n");
+        exit(4);
+    }
+
+    int moduloNum = 2;
+
+    char thirdBit = '0';
+    char secondBit = '0';
+    char firstBit = '0';
+    char zerothBit = '0';
+
+    zerothBit += ((immVal % moduloNum));
+    immVal = immVal >> 1;
+    firstBit += ((immVal % moduloNum));
+    immVal = immVal >> 1;
+    secondBit += ((immVal % moduloNum));
+    immVal = immVal >> 1;
+    thirdBit += ((immVal % moduloNum));
+    immVal = immVal >> 1;
+
+    isaBinaryStr[*isaBinaryStrIndex] = thirdBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = secondBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = firstBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = zerothBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+
+}
+
 void immediateToBinary5Bit(char* imm, char* isaBinaryStr, int* isaBinaryStrIndex){
 
     int immVal = toNum(imm);
-    printf("immVal: %d \n", immVal);
+    //printf("immVal: %d \n", immVal);
 
     char fourthBit = '0';
     char thirdBit = '0';
@@ -791,7 +870,338 @@ void immediateToBinary5Bit(char* imm, char* isaBinaryStr, int* isaBinaryStrIndex
 
 }
 
-void isaToHex(char** tokenList, int tokenListCount, FILE* outputFile){
+void immediateToBinary6Bit(char* imm, char* isaBinaryStr, int* isaBinaryStrIndex){
+
+    int immVal = toNum(imm);
+    //printf("immVal: %d \n", immVal);
+
+    char fifthBit = '0';
+    char fourthBit = '0';
+    char thirdBit = '0';
+    char secondBit = '0';
+    char firstBit = '0';
+    char zerothBit = '0';
+
+    int negativity = 1;
+    int moduloNum = 2;
+    if(immVal < 0){
+        negativity = -1;
+    }
+    
+    zerothBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    firstBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    secondBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    thirdBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fourthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fifthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    
+    isaBinaryStr[*isaBinaryStrIndex] = fifthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = fourthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = thirdBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = secondBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = firstBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = zerothBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+}
+
+void immediateToBinary8Bit(char* imm, char* isaBinaryStr, int* isaBinaryStrIndex){
+
+    int immVal = toNum(imm);
+    
+    int trapLowerBound = 0;
+    int trapUpperBound = toNum("x01FF");
+
+    if(immVal < trapLowerBound || immVal > trapUpperBound){
+        printf("\nnot within trap vector range\n");
+        exit(4);
+    }
+
+    char seventhBit = '0';
+    char sixthBit = '0';
+    char fifthBit = '0';
+    char fourthBit = '0';
+    char thirdBit = '0';
+    char secondBit = '0';
+    char firstBit = '0';
+    char zerothBit = '0';
+
+    int negativity = 1;
+    int moduloNum = 2;
+ 
+    zerothBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    firstBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    secondBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    thirdBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fourthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fifthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    sixthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    seventhBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    
+     isaBinaryStr[*isaBinaryStrIndex] = seventhBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+     isaBinaryStr[*isaBinaryStrIndex] = sixthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+     isaBinaryStr[*isaBinaryStrIndex] = fifthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = fourthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = thirdBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = secondBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = firstBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = zerothBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+}
+
+void immediateToBinary9Bit(int imm, char* isaBinaryStr, int* isaBinaryStrIndex){
+
+    int immVal = imm;
+    printf("immVal: %d \n", immVal);
+
+    char eighthBit = '0';
+    char seventhBit = '0';
+    char sixthBit = '0';
+    char fifthBit = '0';
+    char fourthBit = '0';
+    char thirdBit = '0';
+    char secondBit = '0';
+    char firstBit = '0';
+    char zerothBit = '0';
+
+    int negativity = 1;
+    int moduloNum = 2;
+    if(immVal < 0){
+        negativity = -1;
+    }
+    
+    zerothBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    firstBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    secondBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    thirdBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fourthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fifthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    sixthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    seventhBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    eighthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    
+
+    isaBinaryStr[*isaBinaryStrIndex] = eighthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = seventhBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = sixthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = fifthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = fourthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = thirdBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = secondBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = firstBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = zerothBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+}
+
+void immediateToBinary11Bit(int imm, char* isaBinaryStr, int* isaBinaryStrIndex){
+
+    int immVal = imm;
+    printf("immVal: %d \n", immVal);
+
+    char tenthBit = '0';
+    char ninethBit = '0';
+    char eighthBit = '0';
+    char seventhBit = '0';
+    char sixthBit = '0';
+    char fifthBit = '0';
+    char fourthBit = '0';
+    char thirdBit = '0';
+    char secondBit = '0';
+    char firstBit = '0';
+    char zerothBit = '0';
+
+    int negativity = 1;
+    int moduloNum = 2;
+    if(immVal < 0){
+        negativity = -1;
+    }
+    
+    zerothBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    firstBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    secondBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    thirdBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fourthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fifthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    sixthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    seventhBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    eighthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    ninethBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    tenthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    
+    isaBinaryStr[*isaBinaryStrIndex] = tenthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = ninethBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = eighthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = seventhBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = sixthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = fifthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = fourthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = thirdBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = secondBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = firstBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = zerothBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+}
+
+void immediateToBinary16Bit(int imm, char* isaBinaryStr, int* isaBinaryStrIndex){
+
+    int immVal = imm;
+    printf("immVal: %d \n", immVal);
+
+
+    char fifteenthBit = '0';
+    char fourteenthBit = '0';
+    char thirteenthBit = '0';
+    char twelvethBit = '0';
+    char eleventhBit = '0';
+    char tenthBit = '0';
+    char ninethBit = '0';
+    char eighthBit = '0';
+    char seventhBit = '0';
+    char sixthBit = '0';
+    char fifthBit = '0';
+    char fourthBit = '0';
+    char thirdBit = '0';
+    char secondBit = '0';
+    char firstBit = '0';
+    char zerothBit = '0';
+
+    int negativity = 1;
+    int moduloNum = 2;
+    if(immVal < 0){
+        negativity = -1;
+    }
+    
+    zerothBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    firstBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    secondBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    thirdBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fourthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fifthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    sixthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    seventhBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    eighthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    ninethBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    tenthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    eleventhBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    twelvethBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    thirteenthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fourteenthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    fifteenthBit += ((immVal % moduloNum) * negativity);
+    immVal = immVal >> 1;
+    
+    isaBinaryStr[*isaBinaryStrIndex] = fifteenthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = fourteenthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = thirteenthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = twelvethBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = eleventhBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = tenthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = ninethBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = eighthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = seventhBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = sixthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = fifthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = fourthBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = thirdBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = secondBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = firstBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+    isaBinaryStr[*isaBinaryStrIndex] = zerothBit;
+    *(isaBinaryStrIndex) = *(isaBinaryStrIndex) + 1;
+}
+
+void isaToHex(char** tokenList, int tokenListCount, FILE* outputFile, int currentAddress, int offset){
 
     //1 more for the null terminating char
     int isaBinaryStrLength = 17;
@@ -799,7 +1209,7 @@ void isaToHex(char** tokenList, int tokenListCount, FILE* outputFile){
     isaBinaryStr[isaBinaryStrLength-1] = '\0';
     int isaBinaryStrIndex = 0;
 
-    int tokenListIndex = 0;
+    int tokenListIndex = 0 + offset;
     if(isLabel(tokenList[tokenListIndex])){
         tokenListIndex++;
     }
@@ -835,23 +1245,876 @@ void isaToHex(char** tokenList, int tokenListCount, FILE* outputFile){
             registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
         }
     }else if(strcmp(tokenList[tokenListIndex], "AND") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
 
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        bool reg = isRegister(tokenList[tokenListIndex]);
+        if(!reg){
+            isaBinaryStr[isaBinaryStrIndex] = '1';
+            isaBinaryStrIndex++;
+            immediateToBinary5Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        }else{
+            isaBinaryStr[isaBinaryStrIndex] = '0';
+            isaBinaryStrIndex++;
+            isaBinaryStr[isaBinaryStrIndex] = '0';
+            isaBinaryStrIndex++;
+            isaBinaryStr[isaBinaryStrIndex] = '0';
+            isaBinaryStrIndex++;
+            registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        }
+    }else if(strcmp(tokenList[tokenListIndex], "BR") == 0 ||
+             strcmp(tokenList[tokenListIndex], "BRNZP") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        //setting the NZP Codes
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        //printf("label: %s\n", tokenList[tokenListIndex]);
+
+        int instructionAddress = currentAddress;
+        int labelAddress = -1;
+        for(int i = 0; i < numLabels; i++){
+            if(strcmp(tokenList[tokenListIndex], labels[i]) == 0){
+                labelAddress = labelAddresses[i];
+                break;
+            }
+        }
+        if(labelAddress == -1){
+            printf("\nundefined label\n");
+            exit(1);
+        }
+
+        int PCoffset9 = labelAddress - currentAddress - 2;;
+        PCoffset9 = PCoffset9 >> 1;
+        if(PCoffset9 <-256 || PCoffset9 > 255){
+            printf("\nlabel too far\n");
+            exit(4);
+        }
+        immediateToBinary9Bit(PCoffset9, isaBinaryStr, &isaBinaryStrIndex);
+    }else if(strcmp(tokenList[tokenListIndex], "BRP") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        //setting the NZP Codes
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        //printf("label: %s\n", tokenList[tokenListIndex]);
+
+        int instructionAddress = currentAddress;
+        int labelAddress = -1;
+        for(int i = 0; i < numLabels; i++){
+            if(strcmp(tokenList[tokenListIndex], labels[i]) == 0){
+                labelAddress = labelAddresses[i];
+                break;
+            }
+        }
+        if(labelAddress == -1){
+            printf("\nundefined label\n");
+            exit(1);
+        }
+
+        int PCoffset9 = labelAddress - currentAddress - 2;
+        PCoffset9 = PCoffset9 >> 1;
+        if(PCoffset9 <-256 || PCoffset9 > 255){
+            printf("\nlabel too far\n");
+            exit(4);
+        }
+        immediateToBinary9Bit(PCoffset9, isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "BRNZ") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        //setting the NZP Codes
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        //printf("label: %s\n", tokenList[tokenListIndex]);
+
+        int instructionAddress = currentAddress;
+        int labelAddress = -1;
+        for(int i = 0; i < numLabels; i++){
+            if(strcmp(tokenList[tokenListIndex], labels[i]) == 0){
+                labelAddress = labelAddresses[i];
+                break;
+            }
+        }
+        if(labelAddress == -1){
+            printf("\nundefined label\n");
+            exit(1);
+        }
+
+       int PCoffset9 = labelAddress - currentAddress - 2;
+        PCoffset9 = PCoffset9 >> 1;
+        if(PCoffset9 <-256 || PCoffset9 > 255){
+            printf("\nlabel too far\n");
+            exit(4);
+        }
+        immediateToBinary9Bit(PCoffset9, isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "BRZ") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        //setting the NZP Codes
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        //printf("label: %s\n", tokenList[tokenListIndex]);
+
+        int instructionAddress = currentAddress;
+        int labelAddress = -1;
+        for(int i = 0; i < numLabels; i++){
+            if(strcmp(tokenList[tokenListIndex], labels[i]) == 0){
+                labelAddress = labelAddresses[i];
+                break;
+            }
+        }
+        if(labelAddress == -1){
+            printf("\nundefined label\n");
+            exit(1);
+        }
+
+       int PCoffset9 = labelAddress - currentAddress - 2;
+        PCoffset9 = PCoffset9 >> 1;
+        if(PCoffset9 <-256 || PCoffset9 > 255){
+            printf("\nlabel too far\n");
+            exit(4);
+        }
+        immediateToBinary9Bit(PCoffset9, isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "BRNP") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        //setting the NZP Codes
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        //printf("label: %s\n", tokenList[tokenListIndex]);
+
+        int instructionAddress = currentAddress;
+        int labelAddress = -1;
+        for(int i = 0; i < numLabels; i++){
+            if(strcmp(tokenList[tokenListIndex], labels[i]) == 0){
+                labelAddress = labelAddresses[i];
+                break;
+            }
+        }
+        if(labelAddress == -1){
+            printf("\nundefined label\n");
+            exit(1);
+        }
+
+       int PCoffset9 = labelAddress - currentAddress - 2;
+        PCoffset9 = PCoffset9 >> 1;
+        if(PCoffset9 <-256 || PCoffset9 > 255){
+            printf("\nlabel too far\n");
+            exit(4);
+        }
+        immediateToBinary9Bit(PCoffset9, isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "BRN") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        //setting the NZP Codes
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        //printf("label: %s\n", tokenList[tokenListIndex]);
+
+        int instructionAddress = currentAddress;
+        int labelAddress = -1;
+        for(int i = 0; i < numLabels; i++){
+            if(strcmp(tokenList[tokenListIndex], labels[i]) == 0){
+                labelAddress = labelAddresses[i];
+                break;
+            }
+        }
+        if(labelAddress == -1){
+            printf("\nundefined label\n");
+            exit(1);
+        }
+
+        int PCoffset9 = labelAddress - currentAddress - 2;
+        PCoffset9 = PCoffset9 >> 1;
+        if(PCoffset9 <-256|| PCoffset9 > 255){
+            printf("\nlabel too far\n");
+            exit(4);
+        }
+        immediateToBinary9Bit(PCoffset9, isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "BRZP") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        //setting the NZP Codes
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        //printf("label: %s\n", tokenList[tokenListIndex]);
+
+        int instructionAddress = currentAddress;
+        int labelAddress = -1;
+        for(int i = 0; i < numLabels; i++){
+            if(strcmp(tokenList[tokenListIndex], labels[i]) == 0){
+                labelAddress = labelAddresses[i];
+                break;
+            }
+        }
+        if(labelAddress == -1){
+            printf("\nundefined label\n");
+            exit(1);
+        }
+
+        int PCoffset9 = labelAddress - currentAddress - 2;
+        PCoffset9 = PCoffset9 >> 1;
+        if(PCoffset9 <-256 || PCoffset9 > 255){
+            printf("\nlabel too far\n");
+            exit(4);
+        }
+        immediateToBinary9Bit(PCoffset9, isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "JMP") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+    }else if(strcmp(tokenList[tokenListIndex], "RET") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+    }else if(strcmp(tokenList[tokenListIndex], "JSR") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        //printf("label: %s\n", tokenList[tokenListIndex]);
+
+        int instructionAddress = currentAddress;
+        int labelAddress = -1;
+        for(int i = 0; i < numLabels; i++){
+            if(strcmp(tokenList[tokenListIndex], labels[i]) == 0){
+                labelAddress = labelAddresses[i];
+                break;
+            }
+        }
+        if(labelAddress == -1){
+            printf("\nundefined label\n");
+            exit(1);
+        }
+
+        //account for PC - 2
+        int PCoffset11 = labelAddress - currentAddress - 2;
+        PCoffset11 = PCoffset11 >> 1;
+        if(PCoffset11 <-1024 || PCoffset11 > 1023){
+            printf("\nlabel too far\n");
+            exit(4);
+        }
+        immediateToBinary11Bit(PCoffset11, isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "JSRR") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+    }else if(strcmp(tokenList[tokenListIndex], "LDB") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        tokenListIndex++;
+        immediateToBinary6Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "LDW") == 0){
+        //printf("LDW\n");
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        tokenListIndex++;
+        immediateToBinary6Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "LEA") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        tokenListIndex++;
+        //printf("label: %s\n", tokenList[tokenListIndex]);
+
+        int instructionAddress = currentAddress;
+        int labelAddress = -1;
+        for(int i = 0; i < numLabels; i++){
+            if(strcmp(tokenList[tokenListIndex], labels[i]) == 0){
+                labelAddress = labelAddresses[i];
+                break;
+            }
+        }
+        if(labelAddress == -1){
+            printf("\nundefined label\n");
+            exit(1);
+        }
+
+        //account for PC - 2
+        int PCoffset9 = labelAddress - currentAddress - 2;
+        PCoffset9 = PCoffset9 >> 1;
+        if(PCoffset9 <-256 || PCoffset9 > 255){
+            printf("\nlabel too far\n");
+            exit(4);
+        }
+        immediateToBinary9Bit(PCoffset9, isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "NOT") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        
+    }else if(strcmp(tokenList[tokenListIndex], "RET") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+    
+    }else if(strcmp(tokenList[tokenListIndex], "RTI") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        
+    }else if(strcmp(tokenList[tokenListIndex], "LSHF") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        shfImmediate4Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+    }else if(strcmp(tokenList[tokenListIndex], "RSHFL") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        shfImmediate4Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+    }else if(strcmp(tokenList[tokenListIndex], "RSHFA") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        shfImmediate4Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+    }else if(strcmp(tokenList[tokenListIndex], "STB") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        tokenListIndex++;
+        immediateToBinary6Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+    }else if(strcmp(tokenList[tokenListIndex], "STW") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        tokenListIndex++;
+        immediateToBinary6Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+    }else if(strcmp(tokenList[tokenListIndex], "TRAP") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        immediateToBinary8Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+    }else if(strcmp(tokenList[tokenListIndex], "XOR") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        
+        tokenListIndex++;
+        registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+
+        tokenListIndex++;
+        if(isRegister(tokenList[tokenListIndex])){
+            isaBinaryStr[isaBinaryStrIndex] = '0';
+            isaBinaryStrIndex++;
+            isaBinaryStr[isaBinaryStrIndex] = '0';
+            isaBinaryStrIndex++;
+            isaBinaryStr[isaBinaryStrIndex] = '0';
+            isaBinaryStrIndex++;
+
+            registerToBinary(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        }else{
+            immediateToBinary5Bit(tokenList[tokenListIndex], isaBinaryStr, &isaBinaryStrIndex);
+        }
+    }else if(strcmp(tokenList[tokenListIndex], ".END") == 0){
+        free(isaBinaryStr);
+        return;
+    }else if(strcmp(tokenList[tokenListIndex], ".FILL") == 0){
+        tokenListIndex++;
+        int argVal = toNum(tokenList[tokenListIndex]);
+        immediateToBinary16Bit(argVal, isaBinaryStr, &isaBinaryStrIndex);
+    }else if(strcmp(tokenList[tokenListIndex], ".ORIG") == 0){
+        tokenListIndex++;
+        int argVal = toNum(tokenList[tokenListIndex]);
+        immediateToBinary16Bit(argVal, isaBinaryStr, &isaBinaryStrIndex);
+    }else if(strcmp(tokenList[tokenListIndex], "HALT") == 0){
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '1';
+        isaBinaryStrIndex++;
+
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+        isaBinaryStr[isaBinaryStrIndex] = '0';
+        isaBinaryStrIndex++;
+
+        immediateToBinary8Bit("x0025", isaBinaryStr, &isaBinaryStrIndex);
+        
+    }else if(strcmp(tokenList[tokenListIndex], "NOP") == 0){
+        fputs("0x0000", outputFile);
+        putc('\n', outputFile);
+        free(isaBinaryStr);
+        return;
     }
 
     
     //convert to hex and put it in the output!!
+    //printf("isaBinaryStr: %s\n", isaBinaryStr);
     int value = (int)strtol(isaBinaryStr, NULL, 2);
     char hexString[8];
     sprintf(hexString, "%x", value);
+    //printf("hexString: %s\n", hexString);
     int hexStringLength = strlen(hexString);
     
-    char* isaHex = (char*)malloc(6 * sizeof(char));
+    char* isaHex = (char*)malloc(7 * sizeof(char));
     int isaHexIndex = 0;
+    isaHex[isaHexIndex] = '0';
+    isaHexIndex++;
     isaHex[isaHexIndex] = 'x';
     isaHexIndex++;
+
+    int numZeros = 4 - hexStringLength;
+    for(int i = 0; i < numZeros; i++){
+        isaHex[isaHexIndex] = '0';
+        isaHexIndex++;
+    }
     
+   
     for(int i = 0; i < hexStringLength; i++){
-        isaHex[isaHexIndex] = hexString[i];
+        if(hexString[i] >= 97 && hexString[i] <= 122){
+            isaHex[isaHexIndex] = toupper(hexString[i]);
+        }else{
+            isaHex[isaHexIndex] = hexString[i];
+        }
         isaHexIndex++;
     }
     isaHex[isaHexIndex] = '\0';
@@ -859,7 +2122,6 @@ void isaToHex(char** tokenList, int tokenListCount, FILE* outputFile){
     fputs(isaHex, outputFile);
     putc('\n', outputFile);
     
-
     free(isaBinaryStr);
     free(isaHex);
 }
@@ -879,7 +2141,7 @@ void firstAndSecondPass(char* oFileName){
     reformattedInFile = fopen(TEMP_FILE_NAME, "r");
     
     int startingAddress = 0;
-    int numLabels = 0;    
+    numLabels = 0;    
     
     while(fgets(lineBuffer, MAX_LINE_LENGTH, reformattedInFile) != NULL){
         
@@ -909,10 +2171,10 @@ void firstAndSecondPass(char* oFileName){
     rewind(reformattedInFile);
 
     //-2 because the following logic will increment even at the .ORIG line
-    int currentAddress = startingAddress -2;
+    int currentAddress = startingAddress;
     int labelsIndex = 0;
-    char** labels = (char**)malloc(numLabels * sizeof(char*));
-    int* labelAddresses = (int*)malloc(numLabels * sizeof(int));
+    labels = (char**)malloc(numLabels * sizeof(char*));
+    labelAddresses = (int*)malloc(numLabels * sizeof(int));
 
     while(fgets(lineBuffer, MAX_LINE_LENGTH, reformattedInFile) != NULL){
         
@@ -933,6 +2195,9 @@ void firstAndSecondPass(char* oFileName){
             labels[labelsIndex] = tokenDup;
             labelAddresses[labelsIndex] = currentAddress;
             labelsIndex++;
+        }
+        if(strcmp(token, ".ORIG") == 0){
+            continue;
         }
         currentAddress += 2;
     }
@@ -955,7 +2220,9 @@ void firstAndSecondPass(char* oFileName){
     printf("\n===second pass===\n");
 
     //open the outFile here
-    FILE* outputFile = fopen(oFileName, "w");  
+    FILE* outputFile = fopen(oFileName, "w");
+
+    currentAddress = startingAddress -2;  
 
     while(fgets(lineBuffer, MAX_LINE_LENGTH, reformattedInFile) != NULL){
 
@@ -990,13 +2257,19 @@ void firstAndSecondPass(char* oFileName){
             tokenListCount++;
         }
 
-        isaToHex(tokenList, tokenListCount, outputFile);
+        if(isLabel(tokenList[0])){
+            //printf("2pass label: %s", tokenList[0]);
+            isaToHex(tokenList, tokenListCount, outputFile, currentAddress, 1);
+        }else{
+            isaToHex(tokenList, tokenListCount, outputFile, currentAddress, 0);
+        }
 
         for(int i = 0; i < numTokens; i++){
             free(tokenList[i]);
         }
         free(tokenList);
         free(lineBufferDuplicate);
+        currentAddress += 2;
     }
 
     for(int i = 0; i < numLabels; i++){
@@ -1026,7 +2299,7 @@ int main(int argc, char** argv){
     printf("input file name: %s \n", iFileName);
     printf("output file name: %s \n", oFileName);
     
-    zerothPass(iFileName);
+    int retCode = zerothPass(iFileName);
     firstAndSecondPass(oFileName);
   
     return 0;
